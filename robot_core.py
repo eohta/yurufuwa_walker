@@ -53,12 +53,12 @@ class RobotCore:
         self.set_SG92R_angle(CH_HAND_R, hand_angle_R)
 
     def move_forward(self):
-        self.set_wheel_throttle(-1.0, 1.0)
+        self.set_wheel_throttle(1.0, -1.0)
         time.sleep(self.move_duration)
         self.stop_wheels()
 
     def move_backward(self):
-        self.set_wheel_throttle(1.0, -1.0)
+        self.set_wheel_throttle(-1.0, 1.0)
         time.sleep(self.move_duration)
         self.stop_wheels()
 
