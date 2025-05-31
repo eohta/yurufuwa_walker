@@ -173,7 +173,9 @@ class RobotCore:
         self.port = int(self.config['video']['gstreamer_port'])
 
         if self.camera_type == 'picam':
-            command = [
+
+            # libcamera-vidプロセス
+            self.proc_libcam = subprocess.Popen([
                 'libcamera-vid',
                 '-t', '0',
                 '--inline',
@@ -181,27 +183,46 @@ class RobotCore:
                 '--height', self.config['video']['height'],
                 '--framerate', '30',
                 '--codec', 'h264',
-                '-o', '-', '|',
+                '--profile', 'baseline',
+                '--bitrate', '1500000',
+                '-o', '-'
+            ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+            # gst-launch-1.0プロセス (libcameraのstdoutをgstのstdinへ)
+            self.proc_gst = subprocess.Popen([
                 'gst-launch-1.0',
                 'fdsrc', 'fd=0', '!',
                 'h264parse', '!',
                 'rtph264pay', 'config-interval=1', 'pt=96', '!',
                 'udpsink', f"host={self.operator_ip}", f"port={self.port}"
-            ]
+            ], stdin=self.proc_libcam.stdout, stderr=subprocess.DEVNULL)
+
+            print("Camera streaming started")
+
         else:
-            command = [
+            self.proc_webcam = subprocess.Popen([
                 'gst-launch-1.0',
                 'v4l2src', 'device=/dev/video0', '!',
                 f"image/jpeg,width={self.config['video']['width']},height={self.config['video']['height']},framerate=30/1", '!',
                 'rtpjpegpay', '!',
                 'udpsink', f"host={self.operator_ip}", f"port={self.port}"
-            ]
+            ])
 
-        self.process_cam = subprocess.Popen(command)
-        print("Camera streaming started")
+            print("Camera streaming started")
 
     def stop_camera(self):
-        if hasattr(self, 'process_cam') and self.process_cam:
-            self.process_cam.terminate()
-            self.process_cam.wait()
-            print("Camera streaming stopped")
+
+        # それぞれのプロセスを終了
+        if hasattr(self, 'proc_gst') and self.proc_gst:
+            self.proc_gst.terminate()
+            self.proc_gst.wait()
+
+        if hasattr(self, 'proc_libcam') and self.proc_libcam:
+            self.proc_libcam.terminate()
+            self.proc_libcam.wait()
+
+        if hasattr(self, 'proc_webcam') and self.proc_webcam:
+            self.proc_webcam.terminate()
+            self.proc_webcam.wait()
+
+        print("Camera streaming stopped")

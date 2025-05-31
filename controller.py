@@ -59,7 +59,7 @@ class GStreamerDisplay:
                 'jpegdec', '!',
                 'autovideosink'
             ]
-        elif self.stream_format == 'picam':
+        elif self.camera_type == 'picam':
             command = [
                 'C:/gstreamer/1.0/msvc_x86_64/bin/gst-launch-1.0',
                 'udpsrc', f'port={self.port}',

@@ -285,7 +285,7 @@ Raspberry Camera Module が使える場合は、画像圧縮に H264 を利用�
 
 送信側【ロボット側】
 ```bash
-libcamera-vid -t 0 --inline --width 1280 --height 720 --framerate 30 -o - | gst-launch-1.0 fdsrc ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.10.120 port=47000
+libcamera-vid -t 0 --inline --width 640 --height 480 --framerate 15 -o - 1> >(gst-launch-1.0 fdsrc fd=0 ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.10.120 port=47000) 2>/dev/null
 ```
 
 受信側【パソコン側】
