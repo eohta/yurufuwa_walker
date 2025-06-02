@@ -49,7 +49,9 @@
 
 ```bash
 sudo apt update
-sudo apt install python3-pip libgstreamer1.0-dev gstreamer1.0-tools mosquitto mosquitto-clients
+sudo apt install python3-pip mosquitto mosquitto-clients
+sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \ 
+gstreamer1.0-plugins-base gstreamer1.0-plugins-ugly gstreamer1.0-libav
 pip3 install adafruit-pca9685 paho-mqtt
 ```
 
