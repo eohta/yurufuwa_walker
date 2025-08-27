@@ -38,20 +38,33 @@
 ## ソフトウェアのインストール
 
 ### ロボット側（Raspberry Pi）
-以下のパッケージおよびソフトウェアのインストールが必要です。
+まずは、apt コマンドで以下のソフトウェアをインストールします。
 
 - GStreamer（画像配信）
 - Mosquitto（MQTT）
-- adafruit-pca9685
-- paho-mqtt
-
-下のコマンドでインストールします。
 
 ```bash
 sudo apt update
 sudo apt install python3-pip mosquitto mosquitto-clients
 sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \ 
 gstreamer1.0-plugins-base gstreamer1.0-plugins-ugly gstreamer1.0-libav
+```
+
+次に、pip コマンドで、以下の python パッケージをインストールします。
+
+- adafruit-pca9685
+- paho-mqtt
+
+次のコマンドで仮想環境を構築し、アクティベートした後で
+
+```bash
+python -m venv venv --system-site-packages
+source ./venv/bin/activate
+```
+
+必要なパッケージをインストールします。
+
+```bash
 pip3 install adafruit-pca9685 paho-mqtt
 ```
 
@@ -187,6 +200,7 @@ python controller.py
 | turn right | 右旋回 |
 | hands up | 手を上げる |
 | hands down | 手を下げる |
+| hands level | 手を水平にする |
 | hello | あいさつ |
 | dance | ダンス |
 | yeah | わーい |
@@ -283,14 +297,19 @@ gst-launch-1.0 udpsrc port=47000 ! application/x-rtp, encoding-name=JPEG,payload
 
 ### Raspberry Pi Camera Module の場合（Camera Module V2, V3等）
 
-Raspberry Camera Module が使える場合は、画像圧縮に H264 を利用します。
+Raspberry Camera Module が使える場合は、画像圧縮に H264 を利用します。コード内部では、rpicam-vid を優先的に利用しますが、ない場合は libcamera-vid を利用するようなロジックになっています。
 
-送信側【ロボット側】
+送信側【ロボット側】（rpicam-vid を使う場合）
 ```bash
-libcamera-vid -t 0 --inline --width 640 --height 480 --framerate 15 -o - 1> >(gst-launch-1.0 fdsrc fd=0 ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.10.120 port=47000) 2>/dev/null
+rpicam-vid -n -t 0 --inline --width 640 --height 480 --codec h264 --libav-format h264 --framerate 15 -o - 1> >(gst-launch-1.0 fdsrc fd=0 ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.10.120 port=47000)
 ```
 
-受信側【パソコン側】
+送信側【ロボット側】（libcamera-vid を使う場合）
+```bash
+libcamera-vid -t 0 --inline --width 640 --height 480 --codec h264 --framerate 15 -o - 1> >(gst-launch-1.0 fdsrc fd=0 ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.10.120 port=47000)
+```
+
+受信側【パソコン側】（共通）
 ```bash
 gst-launch-1.0 udpsrc port=47000 caps="application/x-rtp,media=video,encoding-name=H264,payload=96" ! rtph264depay ! avdec_h264 ! autovideosink
 ```
@@ -299,16 +318,3 @@ gst-launch-1.0 udpsrc port=47000 caps="application/x-rtp,media=video,encoding-na
 
 - パソコン側の IP アドレス: 192.168.10.120
 - UDPポート: 47000
-
-## 技術的背景
-
-### なぜ MQTT なのか？
-通常、ロボットのためのフレームワークとしては、ROS(Robot Operating System) が有名ですが、ゆるふわロボでは通信のため MQTT を採用しています。それは、主に次のような２つの理由によります。
-
-- ROS が要求するハードウェアスペックが割と高い
-- MQTT であれば、マイコン等との通信がやり易い
-
-MQTT であれば、M5Stack 等のマイコンとの通信などもやり易く、ロボットが専門の方でなくても扱いやすいのではないかと考えました。
-
-### なぜ GStreamer なのか？
-ROS 等のフレームワークを使えば、実際にはカメラからの画像も扱うことができますが、GStreamer という画像配信向けの汎用のプラットフォームを使うことで、ロボットが専門でない方でも入り易くなるのではないかと考えました。将来的に画像を配信するアプリなどを開発したい学生の方にとってもよい学びの機会になるかもしれません。
