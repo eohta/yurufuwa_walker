@@ -60,9 +60,9 @@ python -m venv venv --system-site-packages
 source ./venv/bin/activate
 ```
 
-Raspberry Pi の場合は、カメラ周りが少し特殊なので、カメラは apt（システム側）に任せ、ロボット制御系の方は pip/venv で管理するのが個人的なお勧めです。この辺りを混ぜてしまうと、少しややこしくなるので、やらない方が良いことを何点か挙げておきます。
+Raspberry Pi の場合は、カメラ周りが少し特殊なので、カメラ側は OS 標準（apt）のものに任せ、ロボット制御系の方は pip/venv で管理するようにした方が扱いやすいのではないか？と思っています。この辺りを混ぜてしまうと、少しややこしくなるので、やらない方が良いことを何点か挙げておきます。
 
-- `pip install picamera2`, `pip install rpi-libcamera` を混ぜる
+- `pip install picamera2`, `pip install rpi-libcamera` などのコマンドを実行してしまう
 - カメラ系以外も apt の Python パッケージで入れる（pip との混在）
 
 最後に、必要なパッケージをインストールします。
@@ -328,3 +328,15 @@ gst-launch-1.0 udpsrc port=47000 caps="application/x-rtp,media=video,encoding-na
 
 - パソコン側の IP アドレス: 192.168.10.120
 - UDPポート: 47000
+
+## 注意点（サーボホーンの取り付け）
+
+こちらはソフトウェアに関する注意点ではありませんが、肩のサーボにサーボホーンを取り付ける際には腕を水平にして取り付けるのがお勧めです。robot_term.py 等で "hands level" を実行して腕を水平にさせると、調整し易いです。
+
+首周りのサーボにサーボホーンを取り付ける場合には、servo_checker.py でサーボの角度を設定するのがお勧めですが、こちらのコードは CircuitPython ベースのコードになっているため、使うためには次のようなパッケージのインストールが必要になります。ロボットの方の仮想環境とは別の環境を用意してインストールして下さい（ロボットの方の仮想環境とは混ぜない方がよい）。
+
+- adafruit-blinka
+- adafruit-circuitpython-pca9685
+- adafruit-circuitpython-motor
+
+将来的には、ロボットの方のコードも CircuitPython のものに統一したいと思っています。

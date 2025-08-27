@@ -31,7 +31,7 @@ class RobotCore:
     def setup_hardware(self):
         self.pca = PCA9685(address=0x40, busnum=1)
         self.pca.set_pwm_freq(50)
-        self.hands_down()
+        self.hands_level()
         self.stop_wheels()
 
     def set_FS90R_throttle(self, channel, throttle):
@@ -166,9 +166,10 @@ class RobotCore:
             self.stop_camera()
         elif "reset" in message:
             self.stop_wheels()
-            self.hands_down()
+            self.hands_level()
 
     def start_camera(self):
+        
         self.camera_type = self.config['video']['camera_type']
         self.operator_ip = self.config['info']['operator_ip']
         self.port = int(self.config['video']['gstreamer_port'])
