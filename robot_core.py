@@ -28,7 +28,7 @@ class RobotCore:
         self.turn_duration = float(config['move']['turn_duration'])
 
     def setup_hardware(self):
-        self.pca = PCA9685()
+        self.pca = PCA9685(address=0x40, busnum=1)
         self.pca.set_pwm_freq(50)
         self.hands_down()
         self.stop_wheels()
