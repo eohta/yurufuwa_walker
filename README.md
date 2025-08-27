@@ -8,6 +8,9 @@
 
 ロボットの遠隔操作の方法としては、SSH等のターミナルを使う方法と、MQTT 経由の通信による方法があります。コードを実際に試す場合は、ターミナルを使う方が簡単かと思いますので、まずはそちらからお試し頂くことをお勧めします。
 
+また、Raspbery Pi のカメラモジュールは少し特殊なので、あまり慣れていない方は Logicool の WebCam などから始めるのがお勧めです。
+
+
 ## 特徴
 - ロボットはパソコンからテキストベースのコマンドを受け取り、さまざまな動作を行います
 - 前進・後退・旋回・ダンスなどの動作を行います（サーボが搭載されている場合）
@@ -38,7 +41,7 @@
 ## ソフトウェアのインストール
 
 ### ロボット側（Raspberry Pi）
-まずは、apt コマンドで以下のソフトウェアをインストールします。
+まずは、apt コマンドで、以下のソフトウェアをインストールします。
 
 - GStreamer（画像配信）
 - Mosquitto（MQTT）
@@ -50,19 +53,19 @@ sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugi
 gstreamer1.0-plugins-base gstreamer1.0-plugins-ugly gstreamer1.0-libav
 ```
 
-次に、pip コマンドで、以下の python パッケージをインストールします。
-
-- adafruit-pca9685
-- paho-mqtt
-
-次のコマンドで仮想環境を構築し、アクティベートした後で
+次に、仮想環境を構築して、アクティベートします。ポイントは --system-site-packages というオプションを付けて、仮想環境を構築する点です。このオプションを付けておくことで、/usr/lib/python3/dist-packages にあるモジュール（apt で入れた picamera2 など）を仮想環境の中からでも呼び出せるようになります（このオプションは Raspberry Pi のカメラモジュールを利用したりするときには、特に重要です）。
 
 ```bash
 python -m venv venv --system-site-packages
 source ./venv/bin/activate
 ```
 
-必要なパッケージをインストールします。
+Raspberry Pi の場合は、カメラ周りが少し特殊なので、カメラは apt（システム側）に任せ、ロボット制御系の方は pip/venv で管理するのが個人的なお勧めです。この辺りを混ぜてしまうと、少しややこしくなるので、やらない方が良いことを何点か挙げておきます。
+
+- `pip install picamera2`, `pip install rpi-libcamera` を混ぜる
+- カメラ系以外も apt の Python パッケージで入れる（pip との混在）
+
+最後に、必要なパッケージをインストールします。
 
 ```bash
 pip3 install adafruit-pca9685 paho-mqtt
@@ -77,6 +80,13 @@ pip3 install adafruit-pca9685 paho-mqtt
 - paho-mqtt
 - GStreamer（画像配信）
 - Mosquitto（MQTT）
+
+こちらについても、仮想環境を構築しておくのがお勧めです。仮想環境を構築した後で、アクティベートします。
+
+```bash
+python -m venv venv
+source ./venv/bin/activate
+```
 
 Python のパッケージは、次のコマンドでインストールします。
 
