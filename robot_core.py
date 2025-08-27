@@ -2,6 +2,7 @@
 コアプログラム（ロボット側）：
 テキストベースのコマンドをロボットの動作に結びつけます
 """
+import shutil, subprocess, os
 import time
 import subprocess
 import configparser
@@ -172,57 +173,108 @@ class RobotCore:
         self.operator_ip = self.config['info']['operator_ip']
         self.port = int(self.config['video']['gstreamer_port'])
 
+        width  = str(self.config['video']['width'])
+        height = str(self.config['video']['height'])
+        fps    = '30'
+        bitrate = '1500000'       # bps
+        mtu     = '1200'
+        pt      = '96'
+
         if self.camera_type == 'picam':
+            
+            rpicam = shutil.which("rpicam-vid")
+            libcam = shutil.which("libcamera-vid")
 
-            # libcamera-vidプロセス
-            self.proc_libcam = subprocess.Popen([
-                'libcamera-vid',
-                '-t', '0',
-                '--inline',
-                '--width', self.config['video']['width'],
-                '--height', self.config['video']['height'],
-                '--framerate', '30',
-                '--codec', 'h264',
-                '--profile', 'baseline',
-                '--bitrate', '1500000',
-                '-o', '-'
-            ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            if rpicam:
+                print("Detected rpicam-vid")
 
-            # gst-launch-1.0プロセス (libcameraのstdoutをgstのstdinへ)
+                # rpicam-vid → stdout(H.264) → GStreamer
+                cmd_cam = [
+                    'rpicam-vid',
+                    '-n',
+                    '-t', '0',
+                    '--inline',
+                    '--vflip',
+                    '--hflip',
+                    '--width', width,
+                    '--height', height,
+                    '--framerate', fps,
+                    '--codec', 'h264',
+                    '--libav-format', 'h264',
+                    '--profile', 'baseline',
+                    '--bitrate', bitrate,
+                    '--intra',   fps,
+                    '-o', '-'
+                ]
+                self.proc_cam = subprocess.Popen(
+                    cmd_cam,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE  # 開発中はログを見える化
+                )
+
+            elif libcam:
+                print("Detected libcamera-vid")
+
+                cmd_cam = [
+                    'libcamera-vid',
+                    '-n',
+                    '-t', '0',
+                    '--inline',
+                    '--vflip',
+                    '--hflip',
+                    '--width', width,
+                    '--height', height,
+                    '--framerate', fps,
+                    '--codec', 'h264',
+                    '--profile', 'baseline',
+                    '--bitrate', bitrate,
+                    '--intra',   fps,
+                    '-o', '-'
+                ]
+                self.proc_cam = subprocess.Popen(
+                    cmd_cam,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+
+            else:
+                print("ERROR: rpicam-vid / libcamera-vid が見つかりません。パッケージを確認してください。")
+                return
+
+            # GStreamer（RTP化）
             self.proc_gst = subprocess.Popen([
                 'gst-launch-1.0',
                 'fdsrc', 'fd=0', '!',
                 'h264parse', '!',
-                'rtph264pay', 'config-interval=1', 'pt=96', '!',
-                'udpsink', f"host={self.operator_ip}", f"port={self.port}"
-            ], stdin=self.proc_libcam.stdout, stderr=subprocess.DEVNULL)
+                'rtph264pay', 'config-interval=1', f'pt={pt}', f'mtu={mtu}', '!',
+                'udpsink', f"host={self.operator_ip}", f"port={self.port}", 'sync=false'
+            ], stdin=self.proc_cam.stdout, stderr=subprocess.PIPE)
 
             print("Camera streaming started")
 
         else:
+            # MJPEG → RTP
             self.proc_webcam = subprocess.Popen([
                 'gst-launch-1.0',
                 'v4l2src', 'device=/dev/video0', '!',
-                f"image/jpeg,width={self.config['video']['width']},height={self.config['video']['height']},framerate=30/1", '!',
+                f"image/jpeg,width={width},height={height},framerate=30/1", '!',
                 'rtpjpegpay', '!',
-                'udpsink', f"host={self.operator_ip}", f"port={self.port}"
-            ])
+                'udpsink', f"host={self.operator_ip}", f"port={self.port}", 'sync=false'
+            ], stderr=subprocess.PIPE)
 
             print("Camera streaming started")
 
+
     def stop_camera(self):
-
-        # それぞれのプロセスを終了
-        if hasattr(self, 'proc_gst') and self.proc_gst:
-            self.proc_gst.terminate()
-            self.proc_gst.wait()
-
-        if hasattr(self, 'proc_libcam') and self.proc_libcam:
-            self.proc_libcam.terminate()
-            self.proc_libcam.wait()
-
-        if hasattr(self, 'proc_webcam') and self.proc_webcam:
-            self.proc_webcam.terminate()
-            self.proc_webcam.wait()
-
+        for attr in ('proc_gst','proc_cam','proc_webcam'):
+            p = getattr(self, attr, None)
+            if p:
+                try:
+                    p.terminate()
+                    p.wait(timeout=2)
+                except Exception:
+                    try: p.kill()
+                    except Exception: pass
+                finally:
+                    setattr(self, attr, None)
         print("Camera streaming stopped")
